@@ -1,18 +1,23 @@
-// locals-trategy.ts is a file that contains the local strategy for passport.js. It is responsible for authenticating users based on their username and password. It also contains the authorize middleware that checks if the user is authenticated and has the required role to access a specific route.
+import passport from 'passport';
+import { Strategy as LocalStrategy } from 'passport-local';
+import bcrypt from 'bcrypt';
+import { getUserByEmail } from '../db/db'; // Function to get user from DB
 
-// interface User {
-//   id: number;
-//   username: string;
-//   password: string;
-//   role: string;
-// }
-
-// declare global {
-//   namespace Express {
-//     interface User {
-//       id: number;
-//       username: string;
-//       role: string;
-//     }
-//   }
-// }
+passport.use(new LocalStrategy(
+  { usernameField: 'email' },
+  async (email, password, done) => {
+    try {
+      const user = await getUserByEmail(email);
+      if (!user) {
+        return done(null, false, { message: 'Incorrect email.' });
+      }
+      const match = await bcrypt.compare(password, user.password);
+      if (!match) {
+        return done(null, false, { message: 'Incorrect password.' });
+      }
+      return done(null, user);
+    } catch (error) {
+      return done(error);
+    }
+  }
+));

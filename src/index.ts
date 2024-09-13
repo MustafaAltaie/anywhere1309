@@ -1,39 +1,48 @@
-import express from "express";
-import session from "express-session";
-import passport from "passport";
-import cookieParser from "cookie-parser";
-import helmet from "helmet";
-import "./authStrategies/local-strategy.js";
-import dotenv from "dotenv";
-
-dotenv.config();
+import express from 'express';
+import passport from 'passport';
+import session from 'express-session';
 
 const app = express();
 
-app.use(helmet());
-app.use(express.json());
-app.use(cookieParser());
-
-const sessionSecret = process.env.SESSION_SECRET;
-if (!sessionSecret) throw new Error("SESSION_SECRET must be set");
-
-app.use(
-  session({
-    secret: sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === "production", // Set to true if using HTTPS
-      httpOnly: true,
-      maxAge: 60 * 60 * 1000, // 1 hour
-    },
-  })
-);
+// Session setup
+app.use(session({
+  secret: 'yourSecret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false }  // Use true for HTTPS
+}));
 
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Import routes
+passport.serializeUser((user, done) => done(null, user.id));
+passport.deserializeUser((id, done) => {
+  // Get user by ID from DB
+});
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+import './authStrategies/local-strategy';
+import './authStrategies/github-strategy.ts';
+
+app.listen(3000, () => console.log('Server running on port 3000'));
+
+import pgSession from 'connect-pg-simple';
+import { Pool } from 'pg';
+
+const pgPool = new Pool({
+  user: 'your_user',
+  host: 'your_host',
+  database: 'your_database',
+  password: 'your_password',
+  port: 5432,
+});
+
+app.use(session({
+  store: new (pgSession(session))({
+    pool: pgPool,
+    tableName: 'session'
+  }),
+  secret: 'yourSecret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false }
+}));
